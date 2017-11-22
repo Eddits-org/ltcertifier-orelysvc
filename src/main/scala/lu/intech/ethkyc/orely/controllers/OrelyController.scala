@@ -11,10 +11,18 @@ import org.apache.commons.codec.binary.Hex
 @Singleton
 class OrelyController @Inject() (orely:OrelyService) extends Controller {
 
-  get("/request") { _:Request =>
-    val address = Hex.decodeHex("98f408cdb75481d95a124be5e5cc60c0d11afcab".toCharArray)
-    val hash = MessageDigest.getInstance("SHA-256").digest(address)
-    orely.buildSAMLSignatureRequest(hash)
+  case class OrelyServiceError(msg:String)
+
+  get("/request") { req:Request =>
+    req.getParam("address") match {
+      case address if address == null || address.length == 0 =>
+        response.badRequest(OrelyServiceError(msg = "Query param \"address\" is mandatory")).toFutureException
+      case address =>
+        val toBeCertified = if (address.startsWith("0x")) address.substring(2) else address
+        val binAddress = Hex.decodeHex(toBeCertified.toCharArray)
+        val hash = MessageDigest.getInstance("SHA-256").digest(binAddress)
+        orely.buildSAMLSignatureRequest(hash)
+    }
   }
 
   post("/response") { req:Request =>

@@ -87,8 +87,8 @@ class OrelyService {
     OrelySignResult(
       signedInfo = new String(signInfo.getCanonicalizedOctetStream, "UTF-8"),
       manifest = manifest,
-      signedInfoSignature = Hex.encodeHexString(dss.getSignatureValue),
-      signerCertificate = Hex.encodeHexString(dss.getKeyInfo.getX509Certificate.getEncoded)
+      signedInfoSignature = "0x" + Hex.encodeHexString(dss.getSignatureValue),
+      signerCertificate = "0x" + Hex.encodeHexString(dss.getKeyInfo.getX509Certificate.getEncoded)
     )
   }
 
