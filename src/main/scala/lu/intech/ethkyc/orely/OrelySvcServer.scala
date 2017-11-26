@@ -14,7 +14,7 @@ class OrelySvcServer extends HttpServer {
   override def configureHttp(router: HttpRouter): Unit = {
     router
       .filter[CommonFilters]
-      .add[OrelyController]
+      .add[CorsFilter, OrelyController]
   }
 
 }
