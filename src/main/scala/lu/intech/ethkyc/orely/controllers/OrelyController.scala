@@ -33,6 +33,7 @@ class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObject
     val samlResponse = req.getParam("SAMLResponse")
     val json = objectMapper.writeValueAsString(orely.parseSAMLSignatureResponse(samlResponse))
     val encoded = Base64.getEncoder.encodeToString(json.getBytes("UTF-8"))
+    println(samlResponse)
     val redirectUrl =
       (req.getParam("redirect") match {
         case null => config.getString("redirectURL")
