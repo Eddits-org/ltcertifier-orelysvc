@@ -25,7 +25,7 @@ class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObject
         val toBeCertified = if (address.startsWith("0x")) address.substring(2) else address
         val binAddress = Hex.decodeHex(toBeCertified.toCharArray)
         val hash = MessageDigest.getInstance("SHA-256").digest(binAddress)
-        orely.buildSAMLSignatureRequest(hash)
+        orely.buildSAMLSignatureRequest(hash, req.getParam("redirect"))
     }
   }
 
@@ -33,7 +33,11 @@ class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObject
     val samlResponse = req.getParam("SAMLResponse")
     val json = objectMapper.writeValueAsString(orely.parseSAMLSignatureResponse(samlResponse))
     val encoded = Base64.getEncoder.encodeToString(json.getBytes("UTF-8"))
-    val redirectUrl = config.getString("redirectURL") + "#response=" + encoded
+    val redirectUrl =
+      (req.getParam("redirect") match {
+        case null => config.getString("redirectURL")
+        case str => str
+      }) + "#response=" + encoded
     response.ok(
       s"""<!DOCTYPE html>
         |<html>
@@ -46,7 +50,6 @@ class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObject
         |</body>
         |</html>""".stripMargin
     ).contentType("text/html; charset=utf-8")
-
   }
 
 

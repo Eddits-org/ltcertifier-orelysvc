@@ -54,7 +54,7 @@ class OrelyService {
     }
   }
 
-  def buildSAMLSignatureRequest(hash: Array[Byte]): OrelySignRequest = {
+  def buildSAMLSignatureRequest(hash: Array[Byte], redirect:String): OrelySignRequest = {
     val xmlRequest = new XmlSignRequestGenerator().setManifest(
       new Manifest.Builder().add(
         new Reference.Builder()
@@ -68,10 +68,14 @@ class OrelyService {
     val params = new RequestParameters()
     params.setCertificateRequest(CertificateRequest.REQUIRED)
     params.setDssPayload(encodedRequest.getBytes("UTF-8"))
+    val returnURL = redirect match {
+      case null => config.getString("luxtrust.returnURL")
+      case str => config.getString("luxtrust.returnURL") + "?redirect=" + str
+    }
     val svc = new RequestService(
       credential,
       new URL(config.getString("luxtrust.destinationURL")),
-      new URL(config.getString("luxtrust.returnURL")),
+      new URL(returnURL),
       new URL(config.getString("luxtrust.issuerURL")),
       config.getBoolean("luxtrust.ocsp")
     )
