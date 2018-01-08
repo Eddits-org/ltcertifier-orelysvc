@@ -1,6 +1,5 @@
 package lu.intech.ethkyc.orely.controllers
 
-import java.security.MessageDigest
 import java.util.Base64
 import javax.inject.{Inject, Singleton}
 
@@ -9,7 +8,6 @@ import com.twitter.finatra.http.Controller
 import com.twitter.finatra.json.FinatraObjectMapper
 import com.typesafe.config.{Config, ConfigFactory}
 import lu.intech.ethkyc.orely.services.OrelyService
-import org.apache.commons.codec.binary.Hex
 
 @Singleton
 class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObjectMapper) extends Controller {
@@ -23,17 +21,15 @@ class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObject
         response.badRequest(OrelyServiceError(msg = "Query param \"address\" is mandatory")).toFutureException
       case address =>
         val toBeCertified = if (address.startsWith("0x")) address.substring(2) else address
-        val binAddress = Hex.decodeHex(toBeCertified.toCharArray)
-        val hash = MessageDigest.getInstance("SHA-256").digest(binAddress)
-        orely.buildSAMLSignatureRequest(hash, req.getParam("redirect"))
+        orely.buildSAMLSignatureRequest(toBeCertified, req.getParam("redirect"))
     }
   }
 
   post("/response") { req:Request =>
     val samlResponse = req.getParam("SAMLResponse")
+    println("Response:"+samlResponse)
     val json = objectMapper.writeValueAsString(orely.parseSAMLSignatureResponse(samlResponse))
     val encoded = Base64.getEncoder.encodeToString(json.getBytes("UTF-8"))
-    println(samlResponse)
     val redirectUrl =
       (req.getParam("redirect") match {
         case null => config.getString("redirectURL")

@@ -2,7 +2,7 @@ package lu.intech.ethkyc.orely.services
 
 import java.io._
 import java.net.URL
-import java.security.KeyStore
+import java.security.{KeyStore, MessageDigest}
 import java.util.Base64
 import javax.inject.Singleton
 import javax.xml.parsers.DocumentBuilderFactory
@@ -54,7 +54,9 @@ class OrelyService {
     }
   }
 
-  def buildSAMLSignatureRequest(hash: Array[Byte], redirect:String): OrelySignRequest = {
+  def buildSAMLSignatureRequest(address:String, redirect:String): OrelySignRequest = {
+    val binAddress = Hex.decodeHex(address.toCharArray)
+    val hash = MessageDigest.getInstance("SHA-256").digest(binAddress)
     val xmlRequest = new XmlSignRequestGenerator().setManifest(
       new Manifest.Builder().add(
         new Reference.Builder()
@@ -68,6 +70,7 @@ class OrelyService {
     val params = new RequestParameters()
     params.setCertificateRequest(CertificateRequest.REQUIRED)
     params.setDssPayload(encodedRequest.getBytes("UTF-8"))
+    params.setChallenge(buildChallenge(address))
     val returnURL = redirect match {
       case null => config.getString("luxtrust.returnURL")
       case str => config.getString("luxtrust.returnURL") + "?redirect=" + str
@@ -115,5 +118,9 @@ class OrelyService {
       case Some(reference) => new String(reference.getContentsAfterTransformation.getBytes, "UTF-8")
     }
   }
+
+  private def buildChallenge(address:String): String =
+    Base64.getEncoder.encodeToString(
+      s"""<ChallengeStructure><Type>VASCO</Type><Version>1.0</Version><Title>ETH ADDRESS CERTIFICATION</Title><Operation>SIGN</Operation><KeyValues><KeyValue><Key>ADDRESS</Key><Value color="default">0x$address</Value></KeyValue></KeyValues></ChallengeStructure>""".getBytes("UTF-8"))
 
 }
