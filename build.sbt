@@ -36,3 +36,13 @@ scalacOptions ++= Seq(
   "-feature",
   "-language:postfixOps"
 )
+
+
+assemblyMergeStrategy in assembly := {
+  case PathList("BUILD", _ @ _*) => MergeStrategy.discard
+  case PathList("rootdoc.txt", _ @ _*) => MergeStrategy.concat
+  case PathList("META-INF", "io.netty.versions.properties", _ @ _*) => MergeStrategy.first
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}

@@ -1,17 +1,9 @@
-FROM openjdk:8-jdk-slim
+FROM openjdk:9-jre-slim
 
 EXPOSE 8080
 
 WORKDIR /orely-svc
-ENTRYPOINT ["sbt","-Dcredentials.keystore.path=/keys/orely.jks", "-Dcredentials.keystorePassword=password", "-Dcredentials.keyAlias=orely", "-Dcredentials.keyPassword=password","-Dlu.luxtrust.certificate.validator.config.path=/keys/TrustAnchors", "run"]
+ENTRYPOINT java --add-modules java.xml.bind -jar -Dcredentials.keystore.path=$KEYSTORE_PATH -Dcredentials.keystorePassword=$KEYSTORE_PASSWORD -Dcredentials.keyAlias=$KEY_ALIAS -Dcredentials.keyPassword=$KEY_PASSWORD -Dlu.luxtrust.certificate.validator.config.path=$TRUST_PATH ./eth-kyc-orely-svc-assembly-0.1.jar
 
-RUN apt-get update && apt-get install -y gnupg apt-transport-https && \
-    echo "deb https://dl.bintray.com/sbt/debian /" > /etc/apt/sources.list.d/sbt.list && \
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823 && \
-    apt-get update && \
-    apt-get install -y sbt bc
-
-ADD . /orely-svc
-
-RUN cd /orely-svc && sbt compile
+ADD target/scala-2.12/eth-kyc-orely-svc-assembly-0.1.jar /orely-svc
 
