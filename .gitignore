@@ -3,4 +3,4 @@
 target/
 project/target/
 src/main/resources/application.dev.conf
-src/main/resources/orely.jks
+dev-config/

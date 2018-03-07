@@ -28,7 +28,8 @@ class OrelyController @Inject() (orely:OrelyService, objectMapper: FinatraObject
   post("/response") { req:Request =>
     val samlResponse = req.getParam("SAMLResponse")
     println("Response:"+samlResponse)
-    val json = objectMapper.writeValueAsString(orely.parseSAMLSignatureResponse(samlResponse))
+    val address = req.getParam("address")
+    val json = objectMapper.writeValueAsString(orely.parseSAMLSignatureResponse(samlResponse, address))
     val encoded = Base64.getEncoder.encodeToString(json.getBytes("UTF-8"))
     val redirectUrl =
       (req.getParam("redirect") match {

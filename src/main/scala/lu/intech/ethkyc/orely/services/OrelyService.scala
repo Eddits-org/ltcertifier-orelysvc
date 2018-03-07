@@ -21,7 +21,7 @@ import org.apache.xml.security.signature.XMLSignature
 class OrelyService {
 
   case class OrelySignRequest(samlRequest: String)
-  case class OrelySignResult(signedInfo: String, manifest: String, signedInfoSignature: String, signerCertificate: String)
+  case class OrelySignResult(signedInfo: String, manifest: String, signedInfoSignature: String, signerCertificate: String, subject: String, issuer: String, address: String)
 
   private val config: Config = ConfigFactory.load()
 
@@ -55,37 +55,43 @@ class OrelyService {
   }
 
   def buildSAMLSignatureRequest(address:String, redirect:String): OrelySignRequest = {
-    val binAddress = Hex.decodeHex(address.toCharArray)
-    val hash = MessageDigest.getInstance("SHA-256").digest(binAddress)
-    val xmlRequest = new XmlSignRequestGenerator().setManifest(
-      new Manifest.Builder().add(
-        new Reference.Builder()
-          .setDigestAlgorithm(DigestAlgorithm.SHA256)
-          .setDigestValue(hash)
-          .setUri(ethAddressSignatureURI)
-          .build()
-      ).build()
-    ).setSignatureForm(XmlSignatureForm.EPES).toXml
-    val encodedRequest = Base64.getEncoder.encodeToString(xmlRequest.getBytes("UTF-8"))
-    val params = new RequestParameters()
-    params.setCertificateRequest(CertificateRequest.REQUIRED)
-    params.setDssPayload(encodedRequest.getBytes("UTF-8"))
-    params.setChallenge(buildChallenge(address))
-    val returnURL = redirect match {
-      case null => config.getString("luxtrust.returnURL")
-      case str => config.getString("luxtrust.returnURL") + "?redirect=" + str
+    try {
+      val binAddress = Hex.decodeHex(address.toCharArray)
+      val hash = MessageDigest.getInstance("SHA-256").digest(binAddress)
+      val xmlRequest = new XmlSignRequestGenerator().setManifest(
+        new Manifest.Builder().add(
+          new Reference.Builder()
+            .setDigestAlgorithm(DigestAlgorithm.SHA256)
+            .setDigestValue(hash)
+            .setUri(ethAddressSignatureURI)
+            .build()
+        ).build()
+      ).setSignatureForm(XmlSignatureForm.EPES).toXml
+      val encodedRequest = Base64.getEncoder.encodeToString(xmlRequest.getBytes("UTF-8"))
+      val params = new RequestParameters()
+      params.setCertificateRequest(CertificateRequest.REQUIRED)
+      params.setDssPayload(encodedRequest.getBytes("UTF-8"))
+      params.setChallenge(buildChallenge(address))
+      val returnURL = redirect match {
+        case null => config.getString("luxtrust.returnURL") + "?address=" + address
+        case str => config.getString("luxtrust.returnURL") + "?redirect=" + str + "&address=" + address
+      }
+      val svc = new RequestService(
+        credential,
+        new URL(config.getString("luxtrust.destinationURL")),
+        new URL(returnURL),
+        new URL(config.getString("luxtrust.issuerURL")),
+        config.getBoolean("luxtrust.ocsp")
+      )
+      OrelySignRequest(svc.createRequest(params).replaceAll("\\n", ""))
+    } catch {
+      case ex:Throwable =>
+        ex.printStackTrace()
+        null
     }
-    val svc = new RequestService(
-      credential,
-      new URL(config.getString("luxtrust.destinationURL")),
-      new URL(returnURL),
-      new URL(config.getString("luxtrust.issuerURL")),
-      config.getBoolean("luxtrust.ocsp")
-    )
-    OrelySignRequest(svc.createRequest(params).replaceAll("\\n", ""))
   }
 
-  def parseSAMLSignatureResponse(encoded: String): OrelySignResult = {
+  def parseSAMLSignatureResponse(encoded: String, address: String): OrelySignResult = {
     val svc = new ResponseService(credential, config.getBoolean("luxtrust.ocsp"))
     val response = svc.parseResponse(encoded)
     val dss = extractDSSSignature(response.getDssPayload)
@@ -95,7 +101,10 @@ class OrelyService {
       signedInfo = new String(signInfo.getCanonicalizedOctetStream, "UTF-8"),
       manifest = manifest,
       signedInfoSignature = "0x" + Hex.encodeHexString(dss.getSignatureValue),
-      signerCertificate = "0x" + Hex.encodeHexString(dss.getKeyInfo.getX509Certificate.getEncoded)
+      signerCertificate = "0x" + Hex.encodeHexString(dss.getKeyInfo.getX509Certificate.getEncoded),
+      subject = dss.getKeyInfo.getX509Certificate.getSubjectDN.toString,
+      issuer = dss.getKeyInfo.getX509Certificate.getIssuerDN.toString,
+      address = "0x" + address
     )
   }
 
